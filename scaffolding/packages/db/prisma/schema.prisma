@@ -1,0 +1,707 @@
+// ==============================================================================
+// Faceless Viral OS — Prisma Schema
+// ==============================================================================
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearch", "fullTextIndex"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==============================================================================
+// ENUMS
+// ==============================================================================
+
+enum UserRole {
+  OWNER
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+enum ChannelStatus {
+  ACTIVE
+  PAUSED
+  ARCHIVED
+  SETUP
+}
+
+enum TierName {
+  FREE
+  ECONOMICAL
+  OPTIMIZED
+  PREMIUM
+  ULTRA
+}
+
+enum TaskType {
+  SCRIPT_GENERATION
+  SCENE_GENERATION
+  TTS_GENERATION
+  VIDEO_RENDER
+  TRANSLATION
+  NICHE_RESEARCH
+  TREND_ANALYSIS
+  COMPETITOR_ANALYSIS
+  ANALYTICS_SUMMARY
+  IDEA_GENERATION
+  RECOMMENDATION
+}
+
+enum JobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+  RETRYING
+}
+
+enum Platform {
+  YOUTUBE
+  TIKTOK
+  INSTAGRAM
+}
+
+enum Language {
+  EN
+  ES
+}
+
+enum AssetType {
+  IMAGE
+  AUDIO
+  VIDEO
+  THUMBNAIL
+  FONT
+}
+
+enum VideoStatus {
+  DRAFT
+  RENDERING
+  READY
+  PUBLISHED
+  FAILED
+}
+
+enum PublishStatus {
+  SCHEDULED
+  PUBLISHING
+  PUBLISHED
+  FAILED
+  CANCELLED
+}
+
+enum BudgetPeriod {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+enum ProviderType {
+  LLM
+  TTS
+  IMAGE
+  VIDEO
+  TRANSCRIPTION
+}
+
+enum ProviderHealth {
+  HEALTHY
+  DEGRADED
+  DOWN
+  UNKNOWN
+}
+
+enum ContentIdeaStatus {
+  DRAFT
+  APPROVED
+  IN_PRODUCTION
+  PUBLISHED
+  REJECTED
+}
+
+// ==============================================================================
+// MODELS
+// ==============================================================================
+
+// ------------------------------------------------------------------------------
+// User & Brand
+// ------------------------------------------------------------------------------
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  role         UserRole @default(VIEWER)
+  passwordHash String
+  apiKey       String?  @unique
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  brands   Brand[]
+  channels Channel[]
+
+  @@index([email])
+  @@index([apiKey])
+  @@map("users")
+}
+
+model Brand {
+  id               String   @id @default(cuid())
+  name             String
+  ownerId          String
+  niche            String?
+  toneDescription  String   @default("")
+  primaryLanguage  Language @default(EN)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  owner    User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  channels Channel[]
+
+  @@index([ownerId])
+  @@map("brands")
+}
+
+model Channel {
+  id                String        @id @default(cuid())
+  brandId           String
+  name              String
+  platform          Platform
+  handle            String
+  status            ChannelStatus @default(SETUP)
+  tier              TierName      @default(ECONOMICAL)
+  monthlyBudgetUsd  Decimal       @default(100) @db.Decimal(10, 2)
+  autopilotEnabled  Boolean       @default(false)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  userId            String?
+
+  brand               Brand               @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  user                User?               @relation(fields: [userId], references: [id])
+  platformAccounts    PlatformAccount[]
+  contentPillars      ContentPillar[]
+  contentIdeas        ContentIdea[]
+  scripts             Script[]
+  videos              Video[]
+  automationRules     AutomationRule[]
+  budgets             Budget[]
+  analyticsSnapshots  AnalyticsSnapshot[]
+  costLedgers         CostLedger[]
+  usageRecords        UsageRecord[]
+  monetizationLinks   MonetizationLink[]
+  assets              Asset[]
+  voiceProfiles       VoiceProfile[]
+
+  @@index([brandId])
+  @@index([userId])
+  @@index([platform])
+  @@index([status])
+  @@index([tier])
+  @@map("channels")
+}
+
+// ------------------------------------------------------------------------------
+// Platform OAuth Accounts
+// ------------------------------------------------------------------------------
+
+model PlatformAccount {
+  id             String    @id @default(cuid())
+  channelId      String
+  platform       Platform
+  accountId      String
+  accessToken    String?
+  refreshToken   String?
+  tokenExpiresAt DateTime?
+  scope          String    @default("")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  channel     Channel      @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  publishJobs PublishJob[]
+
+  @@unique([channelId, platform])
+  @@index([channelId])
+  @@index([platform])
+  @@map("platform_accounts")
+}
+
+// ------------------------------------------------------------------------------
+// Niche Research
+// ------------------------------------------------------------------------------
+
+model Niche {
+  id                String   @id @default(cuid())
+  name              String   @unique
+  category          String
+  competitionScore  Decimal  @db.Decimal(5, 2)
+  revenuePotential  Decimal  @db.Decimal(5, 2)
+  trendScore        Decimal  @db.Decimal(5, 2)
+  createdAt         DateTime @default(now())
+
+  trends             Trend[]
+  competitorChannels CompetitorChannel[]
+
+  @@index([category])
+  @@index([trendScore])
+  @@map("niches")
+}
+
+model Trend {
+  id           String   @id @default(cuid())
+  nicheId      String
+  keyword      String
+  searchVolume Int
+  growthRate   Decimal  @db.Decimal(8, 4)
+  platform     Platform
+  capturedAt   DateTime @default(now())
+
+  niche Niche @relation(fields: [nicheId], references: [id], onDelete: Cascade)
+
+  @@index([nicheId])
+  @@index([platform])
+  @@index([capturedAt])
+  @@map("trends")
+}
+
+model CompetitorChannel {
+  id              String   @id @default(cuid())
+  nicheId         String
+  platform        Platform
+  handle          String
+  subscriberCount Int      @default(0)
+  avgViewCount    Int      @default(0)
+  contentStyle    String   @default("")
+  createdAt       DateTime @default(now())
+
+  niche    Niche            @relation(fields: [nicheId], references: [id], onDelete: Cascade)
+  insights ChannelInsight[]
+
+  @@index([nicheId])
+  @@index([platform])
+  @@map("competitor_channels")
+}
+
+model ChannelInsight {
+  id                   String   @id @default(cuid())
+  competitorChannelId  String
+  hookPatterns         Json     @default("[]")
+  pacingNotes          String   @default("")
+  formatNotes          String   @default("")
+  avgDurationSeconds   Int
+  createdAt            DateTime @default(now())
+
+  competitorChannel CompetitorChannel @relation(fields: [competitorChannelId], references: [id], onDelete: Cascade)
+
+  @@index([competitorChannelId])
+  @@map("channel_insights")
+}
+
+// ------------------------------------------------------------------------------
+// Content Planning
+// ------------------------------------------------------------------------------
+
+model ContentPillar {
+  id                   String   @id @default(cuid())
+  channelId            String
+  name                 String
+  description          String   @default("")
+  videoCount           Int      @default(0)
+  avgPerformanceScore  Decimal  @default(0) @db.Decimal(5, 2)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  channel      Channel       @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  contentIdeas ContentIdea[]
+
+  @@index([channelId])
+  @@map("content_pillars")
+}
+
+model ContentIdea {
+  id                  String            @id @default(cuid())
+  channelId           String
+  pillarId            String?
+  title               String
+  hook                String
+  format              String
+  estimatedRoiScore   Decimal           @default(0) @db.Decimal(5, 2)
+  status              ContentIdeaStatus @default(DRAFT)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  channel Channel        @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  pillar  ContentPillar? @relation(fields: [pillarId], references: [id], onDelete: SetNull)
+  scripts Script[]
+
+  @@index([channelId])
+  @@index([pillarId])
+  @@index([status])
+  @@map("content_ideas")
+}
+
+// ------------------------------------------------------------------------------
+// Script
+// ------------------------------------------------------------------------------
+
+model Script {
+  id          String    @id @default(cuid())
+  ideaId      String?
+  channelId   String
+  language    Language  @default(EN)
+  content     String    @db.Text
+  wordCount   Int       @default(0)
+  modelUsed   String    @default("")
+  costUsd     Decimal   @default(0) @db.Decimal(10, 6)
+  tier        TierName  @default(ECONOMICAL)
+  approvedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  idea    ContentIdea? @relation(fields: [ideaId], references: [id], onDelete: SetNull)
+  channel Channel      @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  videos  Video[]
+
+  @@index([channelId])
+  @@index([ideaId])
+  @@index([tier])
+  @@index([createdAt])
+  @@map("scripts")
+}
+
+// ------------------------------------------------------------------------------
+// Voice & Media Assets
+// ------------------------------------------------------------------------------
+
+model VoiceProfile {
+  id           String   @id @default(cuid())
+  channelId    String
+  provider     String
+  voiceId      String
+  language     Language @default(EN)
+  style        String   @default("")
+  settingsJson Json     @default("{}")
+  createdAt    DateTime @default(now())
+
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@index([channelId])
+  @@map("voice_profiles")
+}
+
+model Asset {
+  id             String    @id @default(cuid())
+  channelId      String
+  type           AssetType
+  url            String
+  sourceUrl      String    @default("")
+  license        String    @default("")
+  licenseExpiry  DateTime?
+  metadata       Json      @default("{}")
+  usageCount     Int       @default(0)
+  createdAt      DateTime  @default(now())
+
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@index([channelId])
+  @@index([type])
+  @@map("assets")
+}
+
+// ------------------------------------------------------------------------------
+// Video Production
+// ------------------------------------------------------------------------------
+
+model Video {
+  id              String      @id @default(cuid())
+  scriptId        String
+  channelId       String
+  status          VideoStatus @default(DRAFT)
+  renderJobId     String?
+  durationSeconds Int         @default(0)
+  fileUrl         String?
+  thumbnailUrl    String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  script   Script         @relation(fields: [scriptId], references: [id], onDelete: Cascade)
+  channel  Channel        @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  variants VideoVariant[]
+  publishJobs PublishJob[]
+  analyticsSnapshots AnalyticsSnapshot[]
+
+  @@index([scriptId])
+  @@index([channelId])
+  @@index([status])
+  @@map("videos")
+}
+
+model VideoVariant {
+  id              String    @id @default(cuid())
+  videoId         String
+  platform        Platform
+  aspectRatio     String
+  durationSeconds Int
+  fileUrl         String
+  status          JobStatus @default(PENDING)
+  createdAt       DateTime  @default(now())
+
+  video       Video        @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  publishJobs PublishJob[]
+
+  @@index([videoId])
+  @@index([platform])
+  @@index([status])
+  @@map("video_variants")
+}
+
+// ------------------------------------------------------------------------------
+// Publishing
+// ------------------------------------------------------------------------------
+
+model PublishJob {
+  id                String        @id @default(cuid())
+  videoVariantId    String
+  platformAccountId String
+  scheduledAt       DateTime
+  publishedAt       DateTime?
+  status            PublishStatus @default(SCHEDULED)
+  platformVideoId   String?
+  errorMessage      String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  videoVariant       VideoVariant        @relation(fields: [videoVariantId], references: [id], onDelete: Cascade)
+  platformAccount    PlatformAccount     @relation(fields: [platformAccountId], references: [id], onDelete: Cascade)
+  analyticsSnapshots AnalyticsSnapshot[]
+  video              Video?              @relation(fields: [videoId], references: [id])
+  videoId            String?
+
+  @@index([videoVariantId])
+  @@index([platformAccountId])
+  @@index([status])
+  @@index([scheduledAt])
+  @@map("publish_jobs")
+}
+
+// ------------------------------------------------------------------------------
+// Analytics
+// ------------------------------------------------------------------------------
+
+model AnalyticsSnapshot {
+  id               String   @id @default(cuid())
+  channelId        String
+  videoId          String?
+  publishJobId     String?
+  platform         Platform
+  views            Int      @default(0)
+  likes            Int      @default(0)
+  comments         Int      @default(0)
+  shares           Int      @default(0)
+  ctr              Decimal  @default(0) @db.Decimal(6, 4)
+  avgViewDuration  Int      @default(0)
+  revenueUsd       Decimal  @default(0) @db.Decimal(10, 4)
+  capturedAt       DateTime @default(now())
+
+  channel    Channel     @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  video      Video?      @relation(fields: [videoId], references: [id], onDelete: SetNull)
+  publishJob PublishJob? @relation(fields: [publishJobId], references: [id], onDelete: SetNull)
+
+  @@index([channelId])
+  @@index([videoId])
+  @@index([publishJobId])
+  @@index([platform])
+  @@index([capturedAt])
+  @@map("analytics_snapshots")
+}
+
+// ------------------------------------------------------------------------------
+// Automation
+// ------------------------------------------------------------------------------
+
+model AutomationRule {
+  id              String    @id @default(cuid())
+  channelId       String
+  triggerType     String
+  triggerConfig   Json      @default("{}")
+  actionType      String
+  actionConfig    Json      @default("{}")
+  enabled         Boolean   @default(true)
+  lastTriggeredAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@index([channelId])
+  @@index([enabled])
+  @@map("automation_rules")
+}
+
+// ------------------------------------------------------------------------------
+// Monetization
+// ------------------------------------------------------------------------------
+
+model MonetizationLink {
+  id             String   @id @default(cuid())
+  channelId      String
+  type           String
+  url            String
+  provider       String
+  trackingParams Json     @default("{}")
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@index([channelId])
+  @@index([active])
+  @@map("monetization_links")
+}
+
+// ------------------------------------------------------------------------------
+// AI Providers & Routing
+// ------------------------------------------------------------------------------
+
+model Provider {
+  id            String         @id @default(cuid())
+  name          String         @unique
+  type          ProviderType
+  baseUrl       String?
+  healthStatus  ProviderHealth @default(UNKNOWN)
+  lastCheckedAt DateTime?
+  config        Json           @default("{}")
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  models         AIModel[]
+  routingPolicies RoutingPolicy[]
+
+  @@index([type])
+  @@index([healthStatus])
+  @@map("providers")
+}
+
+model AIModel {
+  id              String   @id @default(cuid())
+  providerId      String
+  modelId         String
+  taskTypes       TaskType[]
+  costPer1kInput  Decimal  @db.Decimal(10, 6)
+  costPer1kOutput Decimal  @db.Decimal(10, 6)
+  qualityScore    Decimal  @db.Decimal(5, 2)
+  latencyMs       Int
+  maxTokens       Int
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, modelId])
+  @@index([providerId])
+  @@index([modelId])
+  @@map("ai_models")
+}
+
+model TierProfile {
+  id         String   @id @default(cuid())
+  tierName   TierName @unique
+  configJson Json     @default("{}")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("tier_profiles")
+}
+
+model RoutingPolicy {
+  id                  String   @id @default(cuid())
+  channelId           String?
+  tier                TierName
+  taskType            TaskType
+  preferredProviderId String
+  fallbackChain       Json     @default("[]")
+  overrideEnabled     Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  preferredProvider Provider @relation(fields: [preferredProviderId], references: [id])
+
+  @@index([channelId])
+  @@index([tier])
+  @@index([taskType])
+  @@index([preferredProviderId])
+  @@map("routing_policies")
+}
+
+// ------------------------------------------------------------------------------
+// Budget & Cost Tracking
+// ------------------------------------------------------------------------------
+
+model Budget {
+  id             String       @id @default(cuid())
+  entityType     String       // 'CHANNEL' | 'BRAND' | 'USER'
+  entityId       String
+  period         BudgetPeriod
+  amountUsd      Decimal      @db.Decimal(10, 2)
+  alertThreshold Decimal      @default(0.8) @db.Decimal(4, 3)
+  hardStop       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  channel Channel? @relation(fields: [entityId], references: [id], onDelete: Cascade, map: "budget_channel_fk")
+
+  @@index([entityType, entityId])
+  @@index([period])
+  @@map("budgets")
+}
+
+model CostLedger {
+  id           String   @id @default(cuid())
+  channelId    String
+  periodStart  DateTime
+  periodEnd    DateTime
+  budgetUsd    Decimal  @db.Decimal(10, 2)
+  spentUsd     Decimal  @default(0) @db.Decimal(10, 6)
+  entriesCount Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  channel      Channel       @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  usageRecords UsageRecord[]
+
+  @@index([channelId])
+  @@index([periodStart, periodEnd])
+  @@map("cost_ledgers")
+}
+
+model UsageRecord {
+  id           String   @id @default(cuid())
+  ledgerId     String
+  channelId    String
+  timestamp    DateTime @default(now())
+  provider     String
+  model        String
+  taskType     TaskType
+  tokensIn     Int      @default(0)
+  tokensOut    Int      @default(0)
+  mediaSeconds Decimal  @default(0) @db.Decimal(10, 3)
+  costUsd      Decimal  @db.Decimal(10, 6)
+  tier         TierName
+  metadata     Json     @default("{}")
+  createdAt    DateTime @default(now())
+
+  ledger  CostLedger @relation(fields: [ledgerId], references: [id], onDelete: Cascade)
+  channel Channel    @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@index([ledgerId])
+  @@index([channelId])
+  @@index([timestamp])
+  @@index([provider])
+  @@index([taskType])
+  @@map("usage_records")
+}

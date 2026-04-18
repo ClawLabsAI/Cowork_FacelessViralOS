@@ -1,0 +1,131 @@
+version: '3.9'
+
+# ==============================================================================
+# Faceless Viral OS — Local Development Services
+# Usage: docker compose up -d
+# ==============================================================================
+
+services:
+  # ----------------------------------------------------------------------------
+  # PostgreSQL 16
+  # ----------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: fvos-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: fvos
+      POSTGRES_PASSWORD: fvos_password
+      POSTGRES_DB: fvos_dev
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U fvos -d fvos_dev']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - fvos-network
+
+  # ----------------------------------------------------------------------------
+  # Redis 7 (BullMQ queues + caching)
+  # ----------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: fvos-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - fvos-network
+
+  # ----------------------------------------------------------------------------
+  # MinIO — Cloudflare R2-compatible local object storage
+  # Access UI at: http://localhost:9001 (admin/minioadmin)
+  # S3 endpoint:  http://localhost:9000
+  # ----------------------------------------------------------------------------
+  minio:
+    image: minio/minio:latest
+    container_name: fvos-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - fvos-network
+
+  # ----------------------------------------------------------------------------
+  # MinIO bucket initializer (runs once to create the local bucket)
+  # ----------------------------------------------------------------------------
+  minio-init:
+    image: minio/mc:latest
+    container_name: fvos-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+        mc alias set local http://minio:9000 minioadmin minioadmin &&
+        mc mb --ignore-existing local/fvos-local &&
+        mc anonymous set download local/fvos-local &&
+        echo 'MinIO bucket initialized.'
+      "
+    networks:
+      - fvos-network
+
+  # ----------------------------------------------------------------------------
+  # Redis Commander — optional web UI for Redis
+  # Access at: http://localhost:8081
+  # ----------------------------------------------------------------------------
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: fvos-redis-ui
+    restart: unless-stopped
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    ports:
+      - '8081:8081'
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - fvos-network
+    profiles:
+      - tools
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  minio_data:
+    driver: local
+
+networks:
+  fvos-network:
+    driver: bridge

@@ -1,0 +1,36 @@
+{
+  "name": "@fvos/api",
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts"
+  },
+  "dependencies": {
+    "fastify": "^4.27.0",
+    "@fastify/jwt": "^8.0.0",
+    "@fastify/cors": "^9.0.0",
+    "@fastify/rate-limit": "^9.0.0",
+    "@fastify/helmet": "^11.0.0",
+    "zod": "^3.23.0",
+    "@fvos/core": "workspace:*",
+    "@fvos/db": "workspace:*",
+    "@fvos/ai-router": "workspace:*",
+    "@fvos/cost-engine": "workspace:*",
+    "bullmq": "^5.0.0",
+    "ioredis": "^5.3.0",
+    "openai": "^4.47.0",
+    "@anthropic-ai/sdk": "^0.24.0",
+    "bcryptjs": "^2.4.3"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0",
+    "@types/node": "^20.0.0",
+    "@types/bcryptjs": "^2.4.6",
+    "ts-node-dev": "^2.0.0"
+  }
+}

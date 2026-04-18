@@ -1,0 +1,28 @@
+{
+  "name": "@fvos/worker",
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts"
+  },
+  "dependencies": {
+    "@fvos/core": "workspace:*",
+    "@fvos/db": "workspace:*",
+    "@fvos/ai-router": "workspace:*",
+    "@fvos/cost-engine": "workspace:*",
+    "bullmq": "^5.0.0",
+    "ioredis": "^5.3.0",
+    "openai": "^4.47.0",
+    "@anthropic-ai/sdk": "^0.24.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0",
+    "@types/node": "^20.0.0",
+    "ts-node-dev": "^2.0.0"
+  }
+}
