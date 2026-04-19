@@ -1,4 +1,7 @@
-import type { PrismaClient, TaskType, TierName, UsageRecord } from '@fvos/db';
+import type { PrismaClient } from '@fvos/db';
+type TaskType = string;
+type TierName = string;
+type UsageRecord = Record<string, unknown>;
 import { startOfMonth, MINIMUM_COST_USD } from '@fvos/core';
 
 // ==============================================================================

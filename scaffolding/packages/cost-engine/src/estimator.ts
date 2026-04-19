@@ -8,7 +8,7 @@ export interface CostEstimate {
   estimatedCostUsd: number;
   /** Includes the COST_ESTIMATE_BUFFER_FACTOR overhead */
   estimatedCostWithBufferUsd: number;
-  breakdown: Record<string, number>;
+  breakdown: Record<string, unknown>;
   currency: 'USD';
   confidence: 'HIGH' | 'MEDIUM' | 'LOW';
 }
