@@ -180,8 +180,8 @@ export class OpenAIProvider extends BaseProvider {
     return ProviderError.unknown(this.providerId, err);
   }
 
-  private parseRetryAfter(err: OpenAI.APIError): number | undefined {
-    const header = (err as { headers?: Record<string, string> }).headers?.['retry-after'];
+  private parseRetryAfter(err: { headers?: Record<string, string> }): number | undefined {
+    const header = err.headers?.['retry-after'];
     if (header) {
       const seconds = parseInt(header, 10);
       if (!isNaN(seconds)) return seconds * 1000;
