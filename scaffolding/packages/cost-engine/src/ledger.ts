@@ -1,7 +1,8 @@
 import type { PrismaClient } from '@fvos/db';
 type TaskType = string;
 type TierName = string;
-type UsageRecord = Record<string, unknown>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type UsageRecord = Record<string, any>;
 import { startOfMonth, MINIMUM_COST_USD } from '@fvos/core';
 
 // ==============================================================================
