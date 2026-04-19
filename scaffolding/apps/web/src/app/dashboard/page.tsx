@@ -1,188 +1,101 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { generateScript } from '@/lib/api';
-
-const CHANNEL_ID = 'seed-channel-001';
-
-const FORMATS = ['listicle', 'story', 'tutorial', 'review', 'explainer'];
-const TONES = ['informative', 'casual', 'energetic', 'professional', 'motivational'];
-const TIERS = ['ECONOMICAL', 'OPTIMIZED', 'PREMIUM'];
-const DURATIONS = [
-  { label: '60s (Short)', value: 60 },
-  { label: '3 min', value: 180 },
-  { label: '5 min', value: 300 },
-  { label: '10 min', value: 600 },
-];
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { getApiHealth, getVideoEngineHealth, listJobs } from '@/lib/api';
 
 export default function DashboardPage() {
-  const router = useRouter();
-  const [topic, setTopic] = useState('');
-  const [format, setFormat] = useState('listicle');
-  const [tone, setTone] = useState('informative');
-  const [tier, setTier] = useState('ECONOMICAL');
-  const [duration, setDuration] = useState(300);
-  const [language, setLanguage] = useState('en');
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<{ scriptId: string; estimatedCostUsd: number } | null>(null);
-  const [error, setError] = useState('');
+  const [apiStatus, setApiStatus] = useState('checking...');
+  const [videoStatus, setVideoStatus] = useState('checking...');
+  const [jobs, setJobs] = useState<any[]>([]);
 
-  async function handleGenerate(e: React.FormEvent) {
-    e.preventDefault();
-    if (!topic.trim()) return;
-    setError('');
-    setResult(null);
-    setLoading(true);
-    try {
-      const res = await generateScript({
-        channelId: CHANNEL_ID,
-        topic,
-        format,
-        tone,
-        tier,
-        targetDurationSeconds: duration,
-        language,
-      });
-      setResult(res);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Generation failed');
-    } finally {
-      setLoading(false);
-    }
-  }
+  useEffect(() => {
+    getApiHealth().then(d => setApiStatus(d.status ?? 'unknown')).catch(() => setApiStatus('offline'));
+    getVideoEngineHealth().then(d => setVideoStatus(d.status ?? 'unknown')).catch(() => setVideoStatus('offline'));
+    listJobs().then(setJobs).catch(() => setJobs([]));
+  }, []);
+
+  const completed = jobs.filter(j => j.status === 'completed').length;
+  const running = jobs.filter(j => !['completed','failed'].includes(j.status)).length;
 
   return (
-    <div className="p-8 max-w-4xl">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-white">Overview</h1>
-        <p className="text-gray-400 mt-1">Channel: <span className="text-violet-400 font-medium">Wealth Simplified</span></p>
+    <div className="p-6 max-w-5xl">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-white">Dashboard</h1>
+        <p className="text-gray-400 text-sm mt-1">Faceless Viral OS · Private Operator Console</p>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
-        {[
-          { label: 'Channel', value: 'Wealth Simplified', sub: 'YouTube' },
-          { label: 'Tier', value: 'ECONOMICAL', sub: '< $0.50 / script' },
-          { label: 'Status', value: 'Active', sub: 'Phase 1' },
-        ].map(stat => (
-          <div key={stat.label} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-            <div className="text-gray-400 text-xs mb-1">{stat.label}</div>
-            <div className="text-white font-semibold">{stat.value}</div>
-            <div className="text-gray-500 text-xs mt-0.5">{stat.sub}</div>
-          </div>
+      {/* Status pills */}
+      <div className="flex gap-3 mb-8">
+        {[{ l: 'API', s: apiStatus }, { l: 'Video Engine', s: videoStatus }].map(({ l, s }) => (
+          <span key={l} className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border ${
+            s === 'ok' ? 'bg-green-950 border-green-800 text-green-400' :
+            s === 'checking...' ? 'bg-gray-900 border-gray-700 text-gray-500' :
+            'bg-red-950 border-red-800 text-red-400'
+          }`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${s === 'ok' ? 'bg-green-400' : s === 'checking...' ? 'bg-gray-600' : 'bg-red-400'}`} />
+            {l}: {s}
+          </span>
         ))}
       </div>
 
-      {/* Script Generator */}
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
-        <h2 className="text-lg font-semibold text-white mb-5">Generate Script</h2>
-
-        <form onSubmit={handleGenerate} className="space-y-4">
-          {/* Topic */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Topic</label>
-            <input
-              type="text"
-              value={topic}
-              onChange={e => setTopic(e.target.value)}
-              placeholder="e.g. 5 formas de invertir con $100 en 2026"
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-violet-500"
-            />
-          </div>
-
-          {/* Row: Format + Tone */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Format</label>
-              <select
-                value={format}
-                onChange={e => setFormat(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
-              >
-                {FORMATS.map(f => <option key={f} value={f}>{f}</option>)}
-              </select>
+      {/* Stats */}
+      <div className="grid grid-cols-4 gap-4 mb-8">
+        {[
+          { icon: '🎬', value: completed, label: 'Videos Generated', href: '/dashboard/videos' },
+          { icon: '⚡', value: running,   label: 'In Progress',       href: '/dashboard/videos' },
+          { icon: '📺', value: 1,          label: 'Active Channels',   href: '/dashboard/channels' },
+          { icon: '💰', value: `$${(completed * 0.08).toFixed(2)}`, label: 'Est. Cost This Month', href: '/dashboard/costs' },
+        ].map(s => (
+          <Link href={s.href} key={s.label}>
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 hover:border-violet-700 transition-colors cursor-pointer">
+              <div className="text-xl mb-2">{s.icon}</div>
+              <div className="text-2xl font-bold text-white">{s.value}</div>
+              <div className="text-xs text-gray-400 mt-1">{s.label}</div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Tone</label>
-              <select
-                value={tone}
-                onChange={e => setTone(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
-              >
-                {TONES.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
-          </div>
-
-          {/* Row: Duration + Tier + Language */}
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Duration</label>
-              <select
-                value={duration}
-                onChange={e => setDuration(Number(e.target.value))}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
-              >
-                {DURATIONS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Tier</label>
-              <select
-                value={tier}
-                onChange={e => setTier(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
-              >
-                {TIERS.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Language</label>
-              <select
-                value={language}
-                onChange={e => setLanguage(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
-              >
-                <option value="en">English</option>
-                <option value="es">Español</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Error */}
-          {error && (
-            <div className="bg-red-900/30 border border-red-800 text-red-400 text-sm rounded-lg px-4 py-3">
-              {error}
-            </div>
-          )}
-
-          {/* Success */}
-          {result && (
-            <div className="bg-violet-900/20 border border-violet-800 rounded-lg px-4 py-4">
-              <div className="text-violet-300 font-medium text-sm mb-1">✓ Script queued successfully</div>
-              <div className="text-gray-400 text-xs">ID: {result.scriptId}</div>
-              <div className="text-gray-400 text-xs">Estimated cost: ${result.estimatedCostUsd.toFixed(4)}</div>
-              <button
-                type="button"
-                onClick={() => router.push('/dashboard/scripts')}
-                className="mt-3 text-violet-400 text-xs hover:text-violet-300 underline"
-              >
-                View in Scripts →
-              </button>
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading || !topic.trim()}
-            className="w-full bg-violet-600 hover:bg-violet-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold rounded-lg px-4 py-3 transition-colors"
-          >
-            {loading ? 'Generating...' : 'Generate Script'}
-          </button>
-        </form>
+          </Link>
+        ))}
       </div>
+
+      {/* Quick Actions */}
+      <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Quick Actions</h2>
+      <div className="grid grid-cols-2 gap-3 mb-8">
+        {[
+          { icon: '🎬', label: 'Generate Video',      desc: 'Create a new faceless video with AI + stock clips',    href: '/dashboard/studio' },
+          { icon: '🎯', label: 'Discover Niches',     desc: 'Find profitable content niches with AI research',       href: '/dashboard/niches' },
+          { icon: '🔍', label: 'Analyze Competitor',  desc: 'Reverse engineer what makes channels successful',       href: '/dashboard/competitors' },
+          { icon: '🤖', label: 'Set up Autopilot',    desc: 'Schedule automatic video generation and publishing',    href: '/dashboard/autopilot' },
+        ].map(a => (
+          <Link href={a.href} key={a.label}>
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 hover:border-violet-600 hover:bg-gray-800/60 transition-all flex gap-3">
+              <span className="text-2xl">{a.icon}</span>
+              <div>
+                <div className="text-white font-medium text-sm">{a.label}</div>
+                <div className="text-gray-500 text-xs mt-0.5">{a.desc}</div>
+              </div>
+            </div>
+          </Link>
+        ))}
+      </div>
+
+      {/* Recent jobs */}
+      {jobs.length > 0 && (
+        <>
+          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Recent Jobs</h2>
+          <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+            {jobs.slice(0, 6).map((job, i) => (
+              <div key={job.job_id} className={`flex items-center justify-between px-4 py-3 ${i > 0 ? 'border-t border-gray-800' : ''}`}>
+                <span className="text-sm text-white truncate max-w-sm">{job.topic}</span>
+                <span className={`text-xs px-2 py-0.5 rounded border ${
+                  job.status === 'completed' ? 'bg-green-900/40 text-green-400 border-green-800' :
+                  job.status === 'failed' ? 'bg-red-900/40 text-red-400 border-red-800' :
+                  'bg-violet-900/40 text-violet-400 border-violet-800'
+                }`}>{job.status === 'completed' ? '✓ done' : job.status === 'failed' ? '✗ failed' : `${job.progress ?? 0}%`}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
