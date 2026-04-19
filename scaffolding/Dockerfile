@@ -1,4 +1,4 @@
-FROM node:20-alpine
+FROM node:20-slim
 
 RUN npm install -g pnpm@9 tsx
 
@@ -12,4 +12,4 @@ RUN pnpm --filter @fvos/db exec prisma generate
 
 EXPOSE 3001
 
-CMD pnpm --filter @fvos/db exec prisma migrate deploy && tsx apps/api/src/index.ts
+CMD pnpm --filter @fvos/db exec prisma db push --accept-data-loss && tsx apps/api/src/index.ts
