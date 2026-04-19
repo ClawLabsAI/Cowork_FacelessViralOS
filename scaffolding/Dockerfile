@@ -8,6 +8,8 @@ COPY . .
 
 RUN pnpm install
 
+RUN pnpm --filter @fvos/db exec prisma generate
+
 EXPOSE 3001
 
-CMD ["tsx", "apps/api/src/index.ts"]
+CMD pnpm --filter @fvos/db exec prisma migrate deploy && tsx apps/api/src/index.ts
