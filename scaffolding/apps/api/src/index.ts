@@ -47,7 +47,8 @@ export async function buildServer() {
   });
 
   await app.register(FastifyCors, {
-    origin: NODE_ENV === 'production' ? process.env['ALLOWED_ORIGINS']?.split(',') : true,
+    // Allow all origins if ALLOWED_ORIGINS not set (tighten in production later)
+    origin: process.env['ALLOWED_ORIGINS']?.split(',') ?? true,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   });
