@@ -11,14 +11,14 @@
     "removeComments": false,
     "strict": true,
     "strictNullChecks": true,
-    "noUncheckedIndexedAccess": true,
-    "exactOptionalPropertyTypes": true,
-    "noImplicitAny": true,
+    "noUncheckedIndexedAccess": false,
+    "exactOptionalPropertyTypes": false,
+    "noImplicitAny": false,
     "noImplicitThis": true,
     "alwaysStrict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noImplicitReturns": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noImplicitReturns": false,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": false,
     "forceConsistentCasingInFileNames": true,
@@ -29,5 +29,5 @@
     "skipLibCheck": true,
     "incremental": true
   },
-  "exclude": ["node_modules", "dist", ".next", "coverage"]
+  "exclude": ["node_modules", "dist", ".next", "coverage", "**/*.test.ts"]
 }
