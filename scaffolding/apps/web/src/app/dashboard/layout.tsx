@@ -1,30 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { getToken, clearToken } from '@/lib/api';
+import { usePathname } from 'next/navigation';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
   const pathname = usePathname();
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    if (!getToken()) {
-      router.push('/login');
-    } else {
-      setReady(true);
-    }
-  }, [router]);
-
-  if (!ready) {
-    return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <div className="text-gray-500 text-sm">Loading...</div>
-      </div>
-    );
-  }
 
   const nav = [
     { href: '/dashboard', label: 'Overview', icon: '▦' },
@@ -61,15 +41,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </Link>
           ))}
         </nav>
-
-        <div className="px-3 py-4 border-t border-gray-800">
-          <button
-            onClick={() => { clearToken(); router.push('/login'); }}
-            className="flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
-          >
-            <span>⎋</span> Sign out
-          </button>
-        </div>
       </aside>
 
       {/* Main content */}

@@ -27,4 +27,4 @@ RUN pnpm --filter @fvos/web build
 
 EXPOSE 3000
 
-CMD pnpm --filter @fvos/web start
+CMD pnpm --filter @fvos/web exec next start -p ${PORT:-3000}
